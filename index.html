@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Meme Pose Match</title>
+  <style>
+    video, canvas {
+      display: block;
+      margin: 10px auto;
+      border: 1px solid #ccc;
+    }
+    #similarityScore {
+      text-align: center;
+      font-size: 1.2em;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Meme Pose Match</h1>
+  <video id="webcam" autoplay playsinline width="500" height="400"></video>
+  <button id="captureBtn">Capture & Compare</button>
+
+  <canvas id="canvas" width="500" height="400" style="display:none;"></canvas>
+
+  <div id="similarityScore"></div>
+
+  <script>
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const btn = document.getElementById('captureBtn');
+    const similarityDiv = document.getElementById('similarityScore');
+
+    // Start webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => alert("Webcam error: " + err));
+
+    btn.onclick = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const base64Image = canvas.toDataURL('image/jpeg');
+
+      similarityDiv.textContent = "Comparing...";
+
+      fetch('http://127.0.0.1:5000/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if(data.error) {
+          similarityDiv.textContent = "Error: " + data.error;
+        } else {
+          similarityDiv.textContent = "Similarity Score: " + data.similarity;
+        }
+      })
+      .catch(() => {
+        similarityDiv.textContent = "Error comparing poses";
+      });
+    };
+  </script>
+</body>
+</html>
