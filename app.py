@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 import cv2
 import numpy as np
@@ -56,9 +57,11 @@ def calculate_similarity(img1, img2):
     # Mean squared error (MSE)
     mse = np.mean((img1_norm - img2_norm) ** 2)
 
-    # Convert MSE to similarity score (0 to 1, 1 = perfect match)
-    similarity = max(0.0, 1 - mse) 
+    scale_factor = 17  # tweak this
+    similarity = max(0.0, 1 - mse * scale_factor)
+
     return round(similarity, 3)
+
 
 @app.route('/compare', methods=['POST'])
 def compare():

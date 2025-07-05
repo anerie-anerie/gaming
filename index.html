@@ -18,7 +18,7 @@
 </head>
 <body>
   <h1>Meme Pose Match</h1>
-  <video id="webcam" autoplay playsinline width="500" height="400"></video>
+  <video id="webcam" autoplay playsinline width="500" height="400" style="transform: scaleX(-1);"></video>
   <button id="captureBtn">Capture & Compare</button>
 
   <canvas id="canvas" width="500" height="400" style="display:none;"></canvas>
@@ -38,7 +38,12 @@
       .catch(err => alert("Webcam error: " + err));
 
     btn.onclick = () => {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Flip the image horizontally before capturing
+      ctx.save();
+      ctx.scale(-1, 1);                       // flip horizontally
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
+
       const base64Image = canvas.toDataURL('image/jpeg');
 
       similarityDiv.textContent = "Comparing...";
