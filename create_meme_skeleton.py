@@ -6,7 +6,7 @@ mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
 def main():
-    img = cv2.imread('meme.jpg')
+    img = cv2.imread('sigma.jpg')
     if img is None:
         print("Error: 'meme.jpg' not found or failed to load.")
         return
@@ -24,8 +24,8 @@ def main():
             landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=3),
             connection_drawing_spec=mp_drawing.DrawingSpec(color=(255,255,255), thickness=2)
         )
-        cv2.imwrite('meme_skeleton.png', black_bg)
-        print("Skeleton image saved as 'meme_skeleton.png'")
+        cv2.imwrite('sigma_skeleton.png', black_bg)
+        print("Skeleton image saved as 'h3_skeleton.png'")
     else:
         print("No pose detected in meme.webp")
 

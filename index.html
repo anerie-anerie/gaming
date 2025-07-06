@@ -3,7 +3,7 @@
 <head>
   <title>Meme Pose Match</title>
   <style>
-    video, canvas {
+    video, canvas, img, select {
       display: block;
       margin: 10px auto;
       border: 1px solid #ccc;
@@ -18,6 +18,29 @@
 </head>
 <body>
   <h1>Meme Pose Match</h1>
+
+  <!-- Meme selection -->
+  <label for="memeSelect" style="text-align:center; display:block;">Choose a meme:</label>
+  <select id="memeSelect">
+    <option value="e1">E1</option>
+    <option value="e2">E2</option>
+    <option value="e3">E3</option>
+    <option value="e4">E4</option>
+    <option value="h1">H1</option>
+    <option value="h2">H2</option>
+    <option value="h3">H3</option>
+    <option value="h4">H4</option>
+    <option value="m1">M1</option>
+    <option value="m2">M2</option>
+    <option value="m3">M3</option>
+    <option value="m4">M4</option>
+    <option value="sigma">Sigma</option>
+  </select>
+
+  <!-- Meme preview -->
+  <img id="memePreview" src="memes/e1.jpg" width="300" alt="Meme Preview">
+
+  <!-- Webcam and capture -->
   <video id="webcam" autoplay playsinline width="500" height="400" style="transform: scaleX(-1);"></video>
   <button id="captureBtn">Capture & Compare</button>
 
@@ -31,6 +54,14 @@
     const ctx = canvas.getContext('2d');
     const btn = document.getElementById('captureBtn');
     const similarityDiv = document.getElementById('similarityScore');
+    const memeSelect = document.getElementById('memeSelect');
+    const memePreview = document.getElementById('memePreview');
+
+    // Update meme preview when selection changes
+    memeSelect.addEventListener('change', () => {
+      const selectedMeme = memeSelect.value;
+      memePreview.src = `memes/${selectedMeme}.jpg`;
+    });
 
     // Start webcam
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -38,24 +69,27 @@
       .catch(err => alert("Webcam error: " + err));
 
     btn.onclick = () => {
-      // Flip the image horizontally before capturing
       ctx.save();
-      ctx.scale(-1, 1);                       // flip horizontally
+      ctx.scale(-1, 1);
       ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
 
       const base64Image = canvas.toDataURL('image/jpeg');
+      const selectedMeme = memeSelect.value;
 
       similarityDiv.textContent = "Comparing...";
 
       fetch('http://127.0.0.1:5000/compare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64Image })
+        body: JSON.stringify({
+          image: base64Image,
+          meme_name: selectedMeme
+        })
       })
       .then(res => res.json())
       .then(data => {
-        if(data.error) {
+        if (data.error) {
           similarityDiv.textContent = "Error: " + data.error;
         } else {
           similarityDiv.textContent = "Similarity Score: " + data.similarity;

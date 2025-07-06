@@ -1,21 +1,16 @@
-
 from flask import Flask, request, jsonify
 import cv2
 import numpy as np
 import mediapipe as mp
 import base64
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
-
-# Load meme skeleton once at start (grayscale or color)
-meme_skeleton = cv2.imread('meme_skeleton.png')
-if meme_skeleton is None:
-    raise FileNotFoundError("meme_skeleton.png not found. Run create_meme_skeleton.py first.")
 
 def decode_base64_image(data):
     if ',' in data:
@@ -44,34 +39,40 @@ def get_skeleton(img):
         return None
 
 def calculate_similarity(img1, img2):
-    # Simple approach: resize both to same size, grayscale, then compare
     img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
     img1_gray = cv2.resize(img1_gray, (300, 300))
     img2_gray = cv2.resize(img2_gray, (300, 300))
 
-    # Normalize
     img1_norm = img1_gray / 255.0
     img2_norm = img2_gray / 255.0
 
-    # Mean squared error (MSE)
     mse = np.mean((img1_norm - img2_norm) ** 2)
 
-    scale_factor = 17  # tweak this
+    scale_factor = 17  # tweakable
     similarity = max(0.0, 1 - mse * scale_factor)
 
     return round(similarity, 3)
 
-
 @app.route('/compare', methods=['POST'])
 def compare():
     data = request.json
-    if 'image' not in data:
-        return jsonify({'error': 'No image provided'}), 400
+    if 'image' not in data or 'meme_name' not in data:
+        return jsonify({'error': 'Missing image or meme_name'}), 400
 
     user_img = decode_base64_image(data['image'])
-    user_skel = get_skeleton(user_img)
+    meme_name = data['meme_name']
+    
+    # Load correct skeleton
+    skeleton_path = os.path.join("skeletons", f"{meme_name}_skeleton.png")
+    if not os.path.exists(skeleton_path):
+        return jsonify({'error': f'Skeleton file {meme_name}_skeleton.png not found'}), 404
 
+    meme_skeleton = cv2.imread(skeleton_path)
+    if meme_skeleton is None:
+        return jsonify({'error': 'Could not read meme skeleton image'}), 500
+
+    user_skel = get_skeleton(user_img)
     if user_skel is None:
         return jsonify({'error': 'No pose detected in user image'}), 400
 
