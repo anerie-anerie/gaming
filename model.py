@@ -5,15 +5,13 @@ import numpy as np
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
-# Extract pose landmarks using MediaPipe
 def extract_pose_landmarks(image):
-    pose = mp_pose.Pose(static_image_mode=True)
-    results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    if results.pose_landmarks:
-        return results.pose_landmarks
-    return None
+    with mp_pose.Pose(static_image_mode=True) as pose:
+        results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        if results.pose_landmarks:
+            return results.pose_landmarks
+        return None
 
-# Draw skeleton on the image
 def draw_skeleton(image, pose_landmarks):
     mp_drawing.draw_landmarks(
         image,
@@ -24,7 +22,39 @@ def draw_skeleton(image, pose_landmarks):
     )
     return image
 
-# Compare two poses and return a similarity score
+def get_angle(a, b, c):
+    a = np.array(a)
+    b = np.array(b)
+    c = np.array(c)
+
+    ba = a - b
+    bc = c - b
+
+    cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    angle = np.arccos(np.clip(cosine, -1.0, 1.0))
+    return np.degrees(angle)
+
+def extract_angles(landmarks):
+    points = [(lm.x, lm.y) for lm in landmarks.landmark]
+    angles = []
+
+    def angle_between(i, j, k):
+        angles.append(get_angle(points[i], points[j], points[k]))
+
+    # Elbow angles
+    angle_between(12, 14, 16)  # Right arm
+    angle_between(11, 13, 15)  # Left arm
+
+    # Shoulder-hip-knee (upper body lean)
+    angle_between(24, 12, 14)  # Right shoulder
+    angle_between(23, 11, 13)  # Left shoulder
+
+    # Knee angles
+    angle_between(24, 26, 28)  # Right knee
+    angle_between(23, 25, 27)  # Left knee
+
+    return np.array(angles)
+
 def get_pose_similarity(user_image, meme_image):
     user_landmarks = extract_pose_landmarks(user_image)
     meme_landmarks = extract_pose_landmarks(meme_image)
@@ -32,31 +62,14 @@ def get_pose_similarity(user_image, meme_image):
     if not user_landmarks or not meme_landmarks:
         return 0.0
 
-    # Convert landmarks to numpy arrays
-    def landmarks_to_array(landmarks):
-        return np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
+    user_angles = extract_angles(user_landmarks)
+    meme_angles = extract_angles(meme_landmarks)
 
-    user_array = landmarks_to_array(user_landmarks)
-    meme_array = landmarks_to_array(meme_landmarks)
+    if len(user_angles) != len(meme_angles):
+        return 0.0
 
-    # Normalize both sets (centered and scaled)
-    def normalize(arr):
-        mean = np.mean(arr, axis=0)
-        arr -= mean
-        max_dist = np.max(np.linalg.norm(arr, axis=1))
-        return arr / max_dist if max_dist != 0 else arr
+    diff = np.abs(user_angles - meme_angles)
+    avg_diff = np.mean(diff)
 
-    user_array = normalize(user_array)
-    meme_array = normalize(meme_array)
-
-    # Resize to same length (just in case)
-    min_len = min(len(user_array), len(meme_array))
-    user_array = user_array[:min_len]
-    meme_array = meme_array[:min_len]
-
-    # Mean squared error similarity (lower is more similar)
-    diff = user_array - meme_array
-    mse = np.mean(np.square(diff))
-    similarity = max(0.0, 100 - mse * 10)  # Scale for easier interpretation
-
+    similarity = max(0.0, 100 - avg_diff)  # Lower avg_diff means higher similarity
     return round(similarity, 2)
